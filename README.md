@@ -1,1 +1,1 @@
-# typescript-eslint-prettier-template
+# discord-bot-template
