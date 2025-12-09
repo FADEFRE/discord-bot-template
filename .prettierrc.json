@@ -4,7 +4,7 @@
 	"bracketSpacing": true,
 	"endOfLine": "auto",
 	"htmlWhitespaceSensitivity": "ignore",
-	"importOrder": ["^types/(.*)$", "^commands/(.*)$", "^[./]"],
+	"importOrder": ["^views/(.*)$", "^components/(.*)$", "^[./]"],
 	"importOrderSeparation": true,
 	"importOrderSortSpecifiers": true,
 	"organizeImportsSkipDestructiveCodeActions": true,

@@ -1,94 +1,127 @@
-import { Collection, CommandInteraction, REST, Routes } from 'discord.js';
+import { REST, Routes, RESTPostAPIChatInputApplicationCommandsJSONBody } from 'discord.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-import { ClientWithCommands, SlashCommand } from './types/discordjsTypes';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+import { ClientWithCommands, CommandModule, DeployedCommand, SlashCommand } from '@/types/discordjsTypes';
 
-dotenv.config(); // Load environment variables from .env
+dotenv.config();
 
-// ES module equivalent of __dirname
+const BOT_TOKEN = process.env.CLIENT_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+
+// __dirname isn't available in ESM; derive it from import.meta.url
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export async function deployCommands(client: ClientWithCommands, BOT_TOKEN: string, CLIENT_ID: string) {
-	client.commands = new Collection();
-	const commands = [];
+// Provide a CommonJS `require` for loading compiled .js files
+const require = createRequire(import.meta.url);
 
-	// Grab all the command files from the commands directory
-	const foldersPath = path.join(__dirname, 'commands');
-	const commandFolders = fs.readdirSync(foldersPath);
-	console.log(`Deploying commands from folders: ${commandFolders.join(', ')}`);
-
-	for (const folder of commandFolders) {
-		const commandsPath = path.join(foldersPath, folder);
-		const commandFiles = fs
-			.readdirSync(commandsPath)
-			.filter((file) => file.endsWith('.js') || file.endsWith('.ts'));
-
-		for (const file of commandFiles) {
-			const filePath = path.join(commandsPath, file);
-			const fileUrl = pathToFileURL(filePath).href;
-			const com = await import(fileUrl);
-
-			if (!com.commandIdentifier) {
-				console.log(`[WARNING] The command at ${filePath} is missing.`);
-				continue;
-			}
-
-			const command: SlashCommand = com.commandIdentifier;
-			if ('data' in command && 'execute' in command) {
-				// Add to commands array for deployment
-				commands.push(command.data.toJSON());
-				// Also add to client commands collection
-				client.commands.set(command.data.name, command);
-			} else {
-				console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-			}
-		}
-	}
-
-	// Construct and prepare an instance of the REST module
-	const rest = new REST().setToken(BOT_TOKEN);
-
-	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands.`);
-
-		// The put method is used to fully refresh all commands in the guild with the current set
-		const data: any = await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-
-		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
-	} catch (error) {
-		// And of course, make sure you catch and log any errors!
-		console.error(error);
-	}
-}
-
-export async function chatInteractionIsCommand(
-	interaction: CommandInteraction,
-	interactionClient: ClientWithCommands
-): Promise<void> {
-	const command = interactionClient.commands.get(interaction.commandName);
-
-	if (!command) {
-		console.error(`No command matching ${interaction.commandName} was found.`);
+const deploy = async (client: ClientWithCommands) => {
+	if (!BOT_TOKEN) {
+		console.error('[ERROR] CLIENT_TOKEN is not defined in environment variables!');
 		return;
 	}
 
-	try {
-		await command.execute(interaction);
-	} catch (error) {
-		console.error(error);
-		if (interaction.replied || interaction.deferred) {
-			await interaction.followUp({
-				content: 'There was an error while executing this command!',
-				ephemeral: true,
-			});
-		} else {
-			await interaction.reply({
-				content: 'There was an error while executing this command!',
-				ephemeral: true,
-			});
+	if (!CLIENT_ID) {
+		console.error('[ERROR] CLIENT_ID is not defined in environment variables!');
+		return;
+	}
+
+	const foldersPath = path.join(__dirname, 'commands');
+
+	if (!fs.existsSync(foldersPath)) {
+		console.error(`[ERROR] Commands folder not found at ${foldersPath}`);
+		return;
+	}
+
+	const commands = loadCommands(client, foldersPath);
+	await deployToDiscord(commands);
+};
+
+function loadCommands(client: ClientWithCommands, foldersPath: string): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
+	const commands: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [];
+	const commandFolders = fs.readdirSync(foldersPath);
+	let registeredCount = 0;
+
+	for (const folder of commandFolders) {
+		const commandsPath = path.join(foldersPath, folder);
+
+		if (!fs.statSync(commandsPath).isDirectory()) {
+			continue;
+		}
+
+		const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
+
+		for (const file of commandFiles) {
+			const filePath = path.join(commandsPath, file);
+
+			try {
+				const commandModule = require(filePath) as CommandModule;
+				const command = findCommandInModule(commandModule);
+
+				if (!command || !('data' in command) || !('execute' in command)) {
+					console.error(`[ERROR] Invalid command in ${file}`);
+					continue;
+				}
+
+				// Register to client
+				client.commands.set(command.data.name, command);
+
+				// Collect for Discord API
+				commands.push(command.data.toJSON());
+				registeredCount++;
+			} catch (error) {
+				console.error(`[ERROR] Failed to load ${file}:`, error);
+			}
 		}
 	}
+
+	console.log(`✓ Loaded ${registeredCount} command(s)`);
+	return commands;
 }
+
+function findCommandInModule(commandModule: CommandModule): SlashCommand | null {
+	// Check for default export
+	if (commandModule.default && typeof commandModule.default === 'object') {
+		return commandModule.default;
+	}
+
+	// Check for commandName export (legacy)
+	if (commandModule.commandName && typeof commandModule.commandName === 'object') {
+		return commandModule.commandName;
+	}
+
+	// Check for any named export that looks like a command
+	for (const key of Object.keys(commandModule)) {
+		const value = commandModule[key];
+		if (value && typeof value === 'object' && 'data' in value && 'execute' in value) {
+			return value as SlashCommand;
+		}
+	}
+
+	return null;
+}
+
+async function deployToDiscord(commands: RESTPostAPIChatInputApplicationCommandsJSONBody[]) {
+	if (commands.length === 0) {
+		console.error('[ERROR] No commands to deploy!');
+		return;
+	}
+
+	const rest = new REST().setToken(BOT_TOKEN!);
+
+	try {
+		const data = await rest.put(
+			Routes.applicationCommands(CLIENT_ID!),
+			{ body: commands }
+		) as DeployedCommand[];
+
+		console.log(`✓ Deployed ${data.length} command(s) to Discord`);
+	} catch (error) {
+		console.error('[ERROR] Failed to deploy commands to Discord:', error);
+	}
+}
+
+export default deploy;
