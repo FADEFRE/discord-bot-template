@@ -1,8 +1,8 @@
+import { ClientWithCommands } from '@/types/discordjsTypes';
 import { Client, Collection, Events, GatewayIntentBits } from 'discord.js';
 import dotenv from 'dotenv';
-// Use explicit .js extension so Node ESM resolves the compiled file in dist/
 import deploy from './deployCommands.js';
-import { ClientWithCommands } from '@/types/discordjsTypes';
+
 dotenv.config();
 
 const clientWithCustomType = new Client({
@@ -11,7 +11,7 @@ const clientWithCustomType = new Client({
 
 clientWithCustomType.commands = new Collection();
 
-deploy(clientWithCustomType).then(_ => {});
+deploy(clientWithCustomType).then((_) => {});
 
 clientWithCustomType.once(Events.ClientReady, async (client) => {
 	console.log(`Logged in as ${client.user?.tag}`);
@@ -61,4 +61,4 @@ clientWithCustomType.on(Events.InteractionCreate, async (interaction) => {
 	}
 });
 
-clientWithCustomType.login(process.env.CLIENT_TOKEN).then(_ => {});
+clientWithCustomType.login(process.env.CLIENT_TOKEN).then((_) => {});

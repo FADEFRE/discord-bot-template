@@ -1,10 +1,10 @@
-import { REST, Routes, RESTPostAPIChatInputApplicationCommandsJSONBody } from 'discord.js';
+import { ClientWithCommands, CommandModule, DeployedCommand, SlashCommand } from '@/types/discordjsTypes';
+import { REST, RESTPostAPIChatInputApplicationCommandsJSONBody, Routes } from 'discord.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
-import { ClientWithCommands, CommandModule, DeployedCommand, SlashCommand } from '@/types/discordjsTypes';
 
 dotenv.config();
 
@@ -40,7 +40,10 @@ const deploy = async (client: ClientWithCommands) => {
 	await deployToDiscord(commands);
 };
 
-function loadCommands(client: ClientWithCommands, foldersPath: string): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
+function loadCommands(
+	client: ClientWithCommands,
+	foldersPath: string
+): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
 	const commands: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [];
 	const commandFolders = fs.readdirSync(foldersPath);
 	let registeredCount = 0;
@@ -113,10 +116,7 @@ async function deployToDiscord(commands: RESTPostAPIChatInputApplicationCommands
 	const rest = new REST().setToken(BOT_TOKEN!);
 
 	try {
-		const data = await rest.put(
-			Routes.applicationCommands(CLIENT_ID!),
-			{ body: commands }
-		) as DeployedCommand[];
+		const data = (await rest.put(Routes.applicationCommands(CLIENT_ID!), { body: commands })) as DeployedCommand[];
 
 		console.log(`✓ Deployed ${data.length} command(s) to Discord`);
 	} catch (error) {

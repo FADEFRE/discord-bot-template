@@ -27,5 +27,3 @@ export interface DeployedCommand {
 	application_id?: string;
 	version?: string;
 }
-
-
