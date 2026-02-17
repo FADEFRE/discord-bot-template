@@ -1,10 +1,7 @@
-import { SlashCommand } from '@/types/discordjsTypes';
 import { CommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { SlashCommand } from '../../types/discordjsTypes';
 
-/**
- * The name of the function does not matter but should be unique.
- *
- */
+// noinspection JSUnusedGlobalSymbols
 export const commandIdentifier: SlashCommand = {
 	data: new SlashCommandBuilder().setName('template-command').setDescription('template-command'),
 

@@ -47,8 +47,6 @@ export default defineConfig(
 				},
 			],
 			// Turn off some strict rules for development
-			'@typescript-eslint/no-empty-object-type': 'off',
-			'@typescript-eslint/no-explicit-any': 'warn',
 			'no-undef': 'off', // TypeScript handles this better
 		},
 	}

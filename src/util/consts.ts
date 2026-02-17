@@ -1,0 +1,6 @@
+export const Consts = {
+	INVALID_BOT_TOKEN: `CLIENT_TOKEN is invalid`,
+	INVALID_BOT_ID: `CLIENT_ID is invalid`,
+	INVALID_GUILD_ID: `GUILD_ID is invalid`,
+	INVALID_COMMAND_FOLDER_PATH: `INVALID_COMMAND_FOLDER_PATH`,
+} as const;

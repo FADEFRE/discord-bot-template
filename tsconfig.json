@@ -16,9 +16,6 @@
 		"rootDir": "./src",
 		"noEmit": false,
 		"tsBuildInfoFile": "./dist/.tsbuildinfo",
-		"paths": {
-			"@/*": ["./src/*"]
-		},
 		"skipLibCheck": true,
 		"strict": true,
 		"esModuleInterop": true,

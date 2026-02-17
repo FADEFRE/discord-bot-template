@@ -1,29 +1,19 @@
-import { Client, Collection, CommandInteraction, SlashCommandBuilder } from 'discord.js';
-
-export interface ClientWithCommands extends Client<true> {
-	commands: ClientCommandType;
-}
+import { Collection, CommandInteraction, SlashCommandBuilder } from 'discord.js';
 
 export type ClientCommandType = Collection<string, SlashCommand>;
 
-export interface SlashCommand {
+export type SlashCommand = BasicSlashCommand | AutoCompleteSlashCommand;
+
+export interface BasicSlashCommand {
 	data: SlashCommandBuilder;
 	execute: (interaction: CommandInteraction) => Promise<void>;
 }
 
-// Types for command module loading
-export interface CommandModule {
-	default?: SlashCommand;
-	commandName?: SlashCommand;
-	[key: string]: unknown;
+export interface AutoCompleteSlashCommand extends BasicSlashCommand {
+	autoComplete: (interaction: CommandInteraction) => Promise<void>;
 }
 
-// Types for Discord API responses
-export interface DeployedCommand {
-	id: string;
-	name: string;
-	description: string;
-	type?: number;
-	application_id?: string;
-	version?: string;
+// Types for command module loading
+export interface CommandModule {
+	[key: string]: unknown;
 }
